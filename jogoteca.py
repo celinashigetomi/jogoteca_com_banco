@@ -1,58 +1,64 @@
 from flask import Flask, render_template, request, redirect, session, flash, url_for
+from flask_mysqldb import MySQL
+from dao import JogoDao, UsuarioDao
+from models import Jogo, Usuario
 
 app = Flask(__name__)
 app.secret_key = 'alura'
 
-class Jogo:
-    def __init__(self, nome, categoria, console):
-        self.nome = nome
-        self.categoria = categoria
-        self.console = console
+app.config['MYSQL_HOST'] = "localhost"
+app.config['MYSQL_USER'] = "root"
+app.config['MYSQL_PASSWORD'] = "1Coxinh@"
+app.config['MYSQL_DB'] = "jogoteca"
+app.config['MYSQL_PORT'] = 3306
 
-@app.route('/inicio')
-def ola():
+db = MySQL(app)
+jogo_dao = JogoDao(db)
+usuario_dao = UsuarioDao(db)
+
+
+@app.route('/')
+def index():
+    lista = jogo_dao.listar()
     return render_template('lista.html', titulo='Jogos', jogos=lista)
+
 
 @app.route('/novo')
 def novo():
     if 'usuario_logado' not in session or session['usuario_logado'] == None:
         return redirect(url_for('login', proxima=url_for('novo')))
-    return render_template('novo.html', titulo='Novo jogo')
+    return render_template('novo.html', titulo='Novo Jogo')
 
-jogo1 = Jogo('Super Mario', 'Acao', 'SNES')
-jogo2 = Jogo('Pokemon Gold', 'RPG', 'GBA')
-jogo3 = Jogo('Mortal Kombat', 'Luta', 'SNES')
-lista = [jogo1, jogo2, jogo3]
 
 @app.route('/criar', methods=['POST',])
 def criar():
-    nome = request.form['nome']
-    categoria = request.form['categoria']
-    console = request.form['console']
+    nome = request. form['nome']
+    categoria = request. form['categoria']
+    console = request. form['console']
     jogo = Jogo(nome, categoria, console)
-    lista.append(jogo)
+    jogo_dao.salvar(jogo)
     return redirect(url_for('index'))
 
-@app.route('/')
-def index():
-    return render_template('lista.html', titulo='Jogos', jogos=lista)
 
 @app.route('/login')
 def login():
-    return render_template('login.html')
+    proxima = request.args.get('proxima')
+    return render_template('login.html', proxima=proxima)
 
-@app.route('/autenticar', methods=['POST',])
+
+@app.route('/autenticar', methods=['POST', ])
 def autenticar():
-    if request.form['usuario'] in usuarios:
-        usuario = usuarios[request.form['usuario']]
+    usuario = usuario_dao.buscar_por_id(request.form['usuario'])
+    if usuario:
         if usuario.senha == request.form['senha']:
             session['usuario_logado'] = usuario.id
             flash(usuario.nome + ' logou com sucesso!')
             proxima_pagina = request.form['proxima']
             return redirect(proxima_pagina)
-    else :
-        flash('Não logado, tente de novo!')
+    else:
+        flash('Não logado, tente denovo!')
         return redirect(url_for('login'))
+
 
 @app.route('/logout')
 def logout():
@@ -60,18 +66,5 @@ def logout():
     flash('Nenhum usuário logado!')
     return redirect(url_for('index'))
 
-class Usuario:
-    def __init__(self, id, nome, senha):
-        self.id = id
-        self.nome = nome
-        self.senha = senha
-
-usuario1 = Usuario('luan', 'Luan Marques', '1234')
-usuario2 = Usuario('nico', 'Nico Steppat', '7a1')
-usuario3 = Usuario('flavio', 'Flávio', 'javascript')
-
-usuarios = { usuario1.id: usuario1,
-             usuario2.id: usuario2,
-             usuario3.id: usuario3 }
 
 app.run(debug=True)
